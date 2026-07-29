@@ -6,9 +6,17 @@ function defaultState() {
     current: null, // {mode:'nominating', teamId, deadline} | {mode:'bidding', playerName, bid, leaderId, nominatorId, deadline}
     paused: false,
     pausedRemainingMs: null,
+    commishPin: '',
     log: [],
     updatedAt: Date.now()
   };
+}
+
+// Never send the real PIN to the client — just whether one is set.
+function sanitizeForClient(state) {
+  const { commishPin, ...rest } = state;
+  rest.hasCommishPin = !!commishPin;
+  return rest;
 }
 
 function uid() {
@@ -65,4 +73,4 @@ function processExpiry(state) {
   }
 }
 
-module.exports = { defaultState, uid, beginNomination, nextNominatorId, applySale, processExpiry };
+module.exports = { defaultState, uid, beginNomination, nextNominatorId, applySale, processExpiry, sanitizeForClient };

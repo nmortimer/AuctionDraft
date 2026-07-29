@@ -53,7 +53,7 @@ button:disabled{opacity:.35;cursor:not-allowed;}
 .identity-bar select{width:auto;min-width:180px;}
 .identity-bar .lbl{font-size:12px;color:var(--muted);white-space:nowrap;}
 .nom-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;}
-.nom-chip{flex:0 0 auto;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--panel-alt);color:var(--muted);white-space:nowrap;}
+.nom-chip{flex:0 0 auto;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--panel-alt);color:var(--muted);white-space:nowrap;display:flex;align-items:center;}
 .nom-chip.current{background:var(--accent);color:#241800;border-color:var(--accent);}
 .nom-chip.passed{color:#5A616C;text-decoration:line-through;opacity:.5;}
 .scoreboard{background:radial-gradient(ellipse at top, #1A2029 0%, #10141A 100%);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;position:relative;overflow:hidden;}
@@ -93,7 +93,7 @@ button:disabled{opacity:.35;cursor:not-allowed;}
 .log-item .price.over{color:var(--red);}
 .log-empty{color:var(--muted);font-size:13px;padding:8px 2px;}
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
-.summary-card h3{margin:0 0 4px;font-size:16px;}
+.summary-card h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;}
 .summary-card .rem{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:22px;margin-bottom:10px;}
 .summary-card .rem.over{color:var(--red);}
 .summary-card ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
@@ -111,6 +111,11 @@ details.commish-panel[open] summary::before{content:'▾ ';}
 .commish-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
 .commish-settings{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;align-items:end;}
 .paused-badge{display:inline-block;background:var(--red-dim);border:1px solid var(--red);color:#FFD9DA;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-top:10px;}
+.team-logo{width:26px;height:26px;border-radius:6px;object-fit:cover;margin-right:8px;flex-shrink:0;}
+.team-logo-sm{width:16px;height:16px;border-radius:4px;object-fit:cover;margin-right:5px;vertical-align:middle;}
+.team-logo-lg{width:64px;height:64px;border-radius:12px;object-fit:cover;margin-bottom:10px;border:1px solid var(--border);}
+.fun-fact{font-size:11px;color:var(--muted);font-style:italic;line-height:1.4;}
+.jab{font-size:11px;color:var(--accent);font-style:italic;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -119,7 +124,10 @@ details.commish-panel[open] summary::before{content:'▾ ';}
 <script>
 let local = null;
 let myTeamId = null;
+let myCommishPin = null;
 let playerDatalistHtml = '';
+
+function loadMyCommishPin(){ myCommishPin = localStorage.getItem('commishPin'); }
 
 async function loadPlayerList(){
   try{
@@ -172,14 +180,20 @@ async function startAuction(){
   const nomSecs = parseInt(document.getElementById('nomSecondsInput').value, 10);
   const bidSecs = parseInt(document.getElementById('bidSecondsInput').value, 10);
   const roster = parseInt(document.getElementById('rosterLimitInput').value, 10);
+  const commishPin = document.getElementById('commishPinInput').value.trim();
   await apiAction('startAuction', {
     settings: {
       increment: (!isNaN(inc) && inc > 0) ? inc : 1,
       nominationSeconds: (!isNaN(nomSecs) && nomSecs > 0) ? nomSecs : 30,
       bidSeconds: (!isNaN(bidSecs) && bidSecs > 0) ? bidSecs : 12,
       rosterLimit: (!isNaN(roster) && roster > 0) ? roster : 0
-    }
+    },
+    commishPin
   });
+  if(commishPin){
+    myCommishPin = commishPin;
+    localStorage.setItem('commishPin', commishPin);
+  }
 }
 
 /* ---------------- auction actions ---------------- */
@@ -191,25 +205,38 @@ async function nominate(){
 }
 async function passNomination(){ await apiAction('pass', { myTeamId }); }
 async function placeBid(teamId, amount){ await apiAction('bid', { teamId, amount }); }
-async function manualSell(){ await apiAction('manualSell', {}); }
 async function undoLast(){ await apiAction('undo', {}); }
 async function endDraft(){ await apiAction('endDraft', {}); }
 async function backToAuction(){ await apiAction('backToAuction', {}); }
 async function resetDraft(){
   if(!confirm('Reset the whole draft room for everyone? This clears all teams, bids, and history.')) return;
-  await apiAction('reset', {});
+  await apiAction('reset', { pin: myCommishPin });
 }
 async function pauseResume(){
-  if(local.paused) await apiAction('resume', {});
-  else await apiAction('pause', {});
+  if(local.paused) await apiAction('resume', { pin: myCommishPin });
+  else await apiAction('pause', { pin: myCommishPin });
 }
-async function extendClock(ms){ await apiAction('extendClock', { ms }); }
-async function forcePass(){ await apiAction('forcePass', {}); }
+async function extendClock(ms){ await apiAction('extendClock', { ms, pin: myCommishPin }); }
+async function forcePass(){ await apiAction('forcePass', { pin: myCommishPin }); }
 async function updateSettingsLive(){
   const increment = parseFloat(document.getElementById('commIncrement').value);
   const nominationSeconds = parseInt(document.getElementById('commNomSecs').value, 10);
   const bidSeconds = parseInt(document.getElementById('commBidSecs').value, 10);
-  await apiAction('updateSettings', { increment, nominationSeconds, bidSeconds });
+  await apiAction('updateSettings', { increment, nominationSeconds, bidSeconds, pin: myCommishPin });
+}
+async function manualSell(){ await apiAction('manualSell', { pin: myCommishPin }); }
+async function unlockCommish(){
+  const input = document.getElementById('commishPinTry');
+  const val = input.value.trim();
+  const result = await apiAction('checkPin', { pin: val });
+  const errEl = document.getElementById('commishPinError');
+  if(result.pinError){
+    if(errEl) errEl.style.display = 'block';
+  } else {
+    myCommishPin = val;
+    localStorage.setItem('commishPin', val);
+    render();
+  }
 }
 function exportState(){
   const blob = new Blob([JSON.stringify(local, null, 2)], { type: 'application/json' });
@@ -237,6 +264,23 @@ function exportCsv(){
   const a = document.createElement('a');
   a.href = url; a.download = 'auction-draft-results.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+const PRESET_TEAMS = [
+  { name: 'Broad Ripple Big Horns', budget: 74, logo: 'https://s3.amazonaws.com/fleaflicker/t1434371_0_150x150.jpg', funFact: 'Home games are played at Broad Ripple Penitentiary — technically not by choice.', jab: 'The only franchise where "roster turnover" sometimes means an actual court date.' },
+  { name: 'Elkhart Express', budget: 51, logo: 'https://s3.amazonaws.com/fleaflicker/t1436853_0_150x150.jpg', funFact: 'Went from the basement to the throne in a single season — fastest turnaround in league history.', jab: 'Leicester City won a title out of nowhere too. Ask them how the encore went.' },
+  { name: 'Wakarusa Wizards', budget: 2, logo: 'https://s3.amazonaws.com/fleaflicker/t1432782_0_150x150.jpg', funFact: 'League champions who built the whole roster around a Harry Potter theme — and it actually worked.', jab: 'Won it all once by magic. Everything since has been decidedly Muggle.' },
+  { name: 'Strasbourg Soldiers', budget: 5, logo: 'https://s3.amazonaws.com/fleaflicker/t1437039_0_150x150.jpg', funFact: 'The only team headquartered in France — official motto still being translated.', jab: 'First to wave the white flag the moment the schedule gets hard.' },
+  { name: 'South Bend Silver Hawks', budget: 78, logo: 'https://s3.amazonaws.com/fleaflicker/t1432373_0_150x150.jpg', funFact: "One of the league's founding franchises, named for Studebaker and South Bend history.", jab: 'Like the cars that inspired them — running mostly on nostalgia and spare parts.' },
+  { name: 'Summit County Ski Bums', budget: 34, logo: 'https://s3.amazonaws.com/fleaflicker/t1434105_0_150x150.jpg', funFact: 'A founding member of the FTFL, still going strong since day one.', jab: 'Word is the moving trucks are already booked — might want to check the standings before packing.' },
+  { name: 'Olde Town Osos', budget: 50, logo: 'https://s3.amazonaws.com/fleaflicker/t1436073_0_150x150.jpg', funFact: "One of the league's most dedicated owners — never misses a waiver deadline.", jab: 'Runner-up energy: always the bridesmaid, never the bride.' },
+  { name: 'Boulder Bandits', budget: 1, logo: 'https://s3.amazonaws.com/fleaflicker/t1417685_0_150x150.jpg', funFact: 'The most decorated franchise in FTFL history — 4 championships and counting.', jab: "At this point they're not a fantasy team, they're a dynasty problem." },
+  { name: 'Kansas City Kaiju', budget: 27, logo: 'https://s3.amazonaws.com/fleaflicker/t1432482_0_150x150.jpg', funFact: 'The newest ownership group in the league, arriving with maybe the best team name FTFL has ever had.', jab: 'Great name, unproven monster — so far more "kaiju costume" than kaiju.' },
+  { name: 'Denver Diamondbacks', budget: 76, logo: 'https://s3.amazonaws.com/fleaflicker/t1434157_0_150x150.jpg', funFact: 'Won a championship before relocating — the trophy made the move, the magic did not.', jab: 'Perpetually "rebuilding." At some point the rebuild just becomes the personality.' }
+];
+
+async function loadPresetTeams(){
+  await apiAction('addTeams', { teams: PRESET_TEAMS });
 }
 
 /* ---------------- ticking / sync ---------------- */
@@ -294,15 +338,26 @@ function renderSetup(){
         <div><label>Nomination clock (sec)</label><input id="nomSecondsInput" type="number" value="30"></div>
         <div><label>Bid clock (sec)</label><input id="bidSecondsInput" type="number" value="12"></div>
       </div>
-      <div style="margin-top:14px;">
-        <label>Roster limit per team (optional)</label>
-        <input id="rosterLimitInput" type="number" placeholder="leave blank for none" style="max-width:220px;">
+      <div style="margin-top:14px;" class="settings-grid">
+        <div>
+          <label>Roster limit per team (optional)</label>
+          <input id="rosterLimitInput" type="number" placeholder="leave blank for none">
+        </div>
+        <div>
+          <label>Commissioner PIN (optional)</label>
+          <input id="commishPinInput" type="text" placeholder="leave blank for no lock">
+        </div>
       </div>
+      <div class="hint">The PIN locks pause/force-pass/force-sell/reset behind whoever knows it. Leave it blank and those stay open to everyone, like before.</div>
       <div class="hint">The bid clock resets every time someone bids. If nobody nominates before the nomination clock runs out, that team is skipped and can't nominate again. Bids are never blocked for going over budget — the team just shows as over budget.</div>
     </div>
     <div class="card">
       <label>Add teams (nomination order = order added; reorder with arrows)</label>
       <div class="setup-row">
+        <button class="btn-amber" onclick="loadPresetTeams()" ${local.teams.length>0?'disabled':''} style="grid-column: span 3;">Load league teams (logos, budgets & flavor text included)</button>
+      </div>
+      <div class="hint">One click adds all 10 FTFL teams with their logos, starting budgets, and fun facts/jabs. Only works while the list is empty — remove teams below first if you need to reload.</div>
+      <div class="setup-row" style="margin-top:14px;">
         <input id="newTeamName" type="text" placeholder="Team name" onkeydown="if(event.key==='Enter'){document.getElementById('newTeamBudget').focus()}">
         <input id="newTeamBudget" type="number" placeholder="Starting $ (optional)" onkeydown="if(event.key==='Enter'){addTeam()}">
         <button class="btn-amber" onclick="addTeam()">Add team</button>
@@ -310,7 +365,7 @@ function renderSetup(){
       <div class="team-list">
         ${local.teams.length === 0 ? '<div class="hint">No teams added yet.</div>' : local.teams.map((t,i) => `
           <div class="team-row">
-            <div><span class="name">${i+1}. ${escapeHtml(t.name)}</span><span class="meta">$${t.budget} budget</span></div>
+            <div style="display:flex;align-items:center;">${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo" alt="">` : ''}<span class="name">${i+1}. ${escapeHtml(t.name)}</span><span class="meta">$${t.budget} budget</span></div>
             <div class="actions">
               <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', -1)" ${i===0?'disabled':''}>↑</button>
               <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', 1)" ${i===local.teams.length-1?'disabled':''}>↓</button>
@@ -331,7 +386,21 @@ function renderAuction(){
   const app = document.getElementById('app');
   const inc = local.settings.increment;
 
-  const commishPanel = `
+  const locked = local.hasCommishPin && !myCommishPin;
+
+  const commishPanel = locked ? `
+    <details class="card commish-panel" open>
+      <summary>Commissioner controls (locked)</summary>
+      <div class="commish-grid" style="align-items:end;">
+        <div style="max-width:200px;">
+          <label>Enter commissioner PIN</label>
+          <input id="commishPinTry" type="text" onkeydown="if(event.key==='Enter'){unlockCommish()}">
+        </div>
+        <button class="btn-amber btn-sm" onclick="unlockCommish()">Unlock</button>
+      </div>
+      <div id="commishPinError" class="hint" style="display:none;color:var(--red);">Wrong PIN.</div>
+    </details>
+  ` : `
     <details class="card commish-panel">
       <summary>Commissioner controls</summary>
       <div class="commish-grid">
@@ -342,6 +411,7 @@ function renderAuction(){
         ${local.current && local.current.mode==='nominating' ? `<button class="btn-danger btn-sm" onclick="forcePass()">Force pass nomination</button>` : ''}
         ${local.current && local.current.mode==='bidding' ? `<button class="btn-ghost btn-sm" onclick="manualSell()">Force sell now</button>` : ''}
         <button class="btn-ghost btn-sm" onclick="undoLast()" ${local.log.length===0?'disabled':''}>Undo last sale</button>
+        <button class="btn-ghost btn-sm" onclick="resetDraft()">Reset draft</button>
       </div>
       <div class="commish-settings">
         <div><label>Increment $</label><input id="commIncrement" type="number" value="${local.settings.increment}"></div>
@@ -349,7 +419,7 @@ function renderAuction(){
         <div><label>Bid clock (s)</label><input id="commBidSecs" type="number" value="${local.settings.bidSeconds}"></div>
         <button class="btn-amber btn-sm" onclick="updateSettingsLive()">Apply to future turns</button>
       </div>
-      <div class="hint">Pause and +/-15s affect whichever clock is running right now. Settings changes apply starting with the next nomination or bid, not the one in progress.</div>
+      <div class="hint">Pause and +/-15s affect whichever clock is running right now. Settings changes apply starting with the next nomination or bid, not the one in progress.${local.hasCommishPin ? ' Unlocked on this device.' : ''}</div>
     </details>
   `;
 
@@ -368,7 +438,7 @@ function renderAuction(){
     <div class="nom-bar">
       ${local.teams.map(t => {
         const cls = t.passedNomination ? 'passed' : (local.current && local.current.mode==='nominating' && local.current.teamId===t.id ? 'current' : '');
-        return `<div class="nom-chip ${cls}">${escapeHtml(t.name)}</div>`;
+        return `<div class="nom-chip ${cls}">${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo-sm" alt="">` : ''}${escapeHtml(t.name)}</div>`;
       }).join('')}
     </div>
   `;
@@ -382,7 +452,8 @@ function renderAuction(){
         <div class="sb-label">On the board</div>
         <div class="sb-player">${escapeHtml(local.current.playerName)}</div>
         <div class="sb-bid">$${local.current.bid}</div>
-        <div class="sb-leader"><span class="tag">Leading</span>${escapeHtml(leader.name)}</div>
+        <div class="sb-leader">${leader.logo ? `<img src="${escapeHtml(leader.logo)}" class="team-logo-sm" alt="">` : ''}<span class="tag">Leading</span>${escapeHtml(leader.name)}</div>
+        ${leader.jab ? `<div class="jab">${escapeHtml(leader.jab)}</div>` : ''}
         ${overWarn ? `<div class="sb-warn">${escapeHtml(leader.name)} would go over budget on this bid</div>` : ''}
         <div class="timer-wrap">
           <div id="timerText" class="timer-text">--s</div>
@@ -401,7 +472,9 @@ function renderAuction(){
     centerPanel = `
       <div class="scoreboard onclock">
         <div class="sb-label">On the clock to nominate</div>
+        ${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo-lg" alt="">` : ''}
         <div class="team">${escapeHtml(t.name)}</div>
+        ${t.funFact ? `<div class="fun-fact" style="margin-bottom:12px;">${escapeHtml(t.funFact)}</div>` : ''}
         ${isMe ? `
           <div class="onclock-input">
             <input id="nomPlayerInput" type="text" placeholder="Player name" autocomplete="off" list="playerList" onkeydown="if(event.key==='Enter'){nominate()}" ${local.paused?'disabled':''}>
@@ -439,9 +512,10 @@ function renderAuction(){
         const wouldBeOver = bidAmount !== null && (t.budget - bidAmount) < 0;
         return `
           <div class="team-card ${isLeading?'leading':''} ${isMine?'mine':''}">
-            <div class="tname">${escapeHtml(t.name)} ${isMine ? '<span class="you-tag">YOU</span>' : ''}</div>
+            <div class="tname">${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo" alt="">` : ''}${escapeHtml(t.name)} ${isMine ? '<span class="you-tag">YOU</span>' : ''}</div>
             <div class="budget ${t.budget<0?'over':''}">$${t.budget}${t.budget<0?' over':''}</div>
             <div class="roster-count">${t.roster.length}${local.settings.rosterLimit ? '/' + local.settings.rosterLimit : ''} players${t.passedNomination ? ' · passed nominating' : ''}</div>
+            ${t.funFact ? `<div class="fun-fact">${escapeHtml(t.funFact)}</div>` : ''}
             ${(isMine && local.current && local.current.mode==='bidding' && local.current.leaderId !== t.id) ? `<button class="${wouldBeOver?'btn-warn':'btn-amber'} btn-sm" onclick="placeBid('${t.id}', ${bidAmount})" ${local.paused?'disabled':''}>Bid $${bidAmount}${wouldBeOver?' ⚠':''}</button>` : ''}
           </div>
         `;
@@ -455,7 +529,7 @@ function renderAuction(){
       <div class="log-list">
         ${local.log.length === 0 ? '<div class="log-empty">No players sold yet.</div>' : local.log.map(l => {
           const t = local.teams.find(x => x.id === l.teamId);
-          return `<div class="log-item"><span>${escapeHtml(l.player)} <span style="color:var(--muted)">→ ${escapeHtml(t?t.name:'Unknown')}</span></span><span class="price ${l.over?'over':''}">$${l.price}${l.over?' ⚠':''}</span></div>`;
+          return `<div class="log-item"><span>${t&&t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo-sm" alt="">` : ''}${escapeHtml(l.player)} <span style="color:var(--muted)">→ ${escapeHtml(t?t.name:'Unknown')}</span>${t&&t.jab ? `<div class="jab">${escapeHtml(t.jab)}</div>` : ''}</span><span class="price ${l.over?'over':''}">$${l.price}${l.over?' ⚠':''}</span></div>`;
         }).join('')}
       </div>
     </div>
@@ -467,7 +541,6 @@ function renderAuction(){
         <div class="eyebrow"><span class="live-dot"></span>Draft Room — Live</div>
         <h1 style="font-size:28px;">Free Agent Auction</h1>
       </div>
-      <button class="btn-ghost btn-sm" onclick="resetDraft()">Reset draft</button>
     </div>
     ${commishPanel}
     ${identityBar}
@@ -492,7 +565,7 @@ function renderSummary(){
     <div class="summary-grid">
       ${local.teams.map(t => `
         <div class="card summary-card">
-          <h3>${escapeHtml(t.name)}</h3>
+          <h3>${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo" alt="">` : ''}${escapeHtml(t.name)}</h3>
           <div class="rem ${t.budget<0?'over':''}">$${t.budget} remaining${t.budget<0?' (over)':''}</div>
           <ul>
             ${t.roster.length === 0 ? '<li style="color:var(--muted)">No players won</li>' : t.roster.map(r => `
@@ -515,6 +588,7 @@ function renderSummary(){
 /* ---------------- init ---------------- */
 async function init(){
   loadMyTeam();
+  loadMyCommishPin();
   await loadPlayerList();
   local = await apiGet();
   render();

@@ -1,5 +1,5 @@
 const { getClient, KEY } = require('./_redis');
-const { defaultState, processExpiry } = require('./_lib');
+const { defaultState, processExpiry, sanitizeForClient } = require('./_lib');
 
 module.exports = async (req, res) => {
   try {
@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
     if (JSON.stringify(state) !== before) {
       await redis.set(KEY, JSON.stringify(state));
     }
-    res.status(200).json(state);
+    res.status(200).json(sanitizeForClient(state));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

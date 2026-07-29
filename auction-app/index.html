@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draft Room — Live Auction</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --bg:#0F1216; --panel:#171B21; --panel-alt:#1E232B;
+  --accent:#FFB020; --accent-dim:#8A6420;
+  --green:#37B26C; --green-dim:#1F5C3B;
+  --red:#E5484D; --red-dim:#3A1518;
+  --text:#EDEFF3; --muted:#8B93A1; --border:#2A303B;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;}
+#app{max-width:1180px;margin:0 auto;padding:24px 20px 60px;}
+.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite;}
+@keyframes blink{50%{opacity:.35;}}
+h1{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:38px;letter-spacing:.01em;margin:0 0 4px;text-transform:uppercase;}
+.subtitle{color:var(--muted);font-size:13px;margin-bottom:22px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.card + .card{margin-top:14px;}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+input, select{background:var(--panel-alt);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 11px;font-size:14px;font-family:inherit;width:100%;}
+input:focus, select:focus{outline:none;border-color:var(--accent);}
+button{font-family:inherit;font-size:13px;font-weight:600;border-radius:7px;padding:10px 16px;border:1px solid var(--border);background:var(--panel-alt);color:var(--text);cursor:pointer;transition:transform .06s ease, border-color .15s ease;}
+button:hover:not(:disabled){border-color:var(--muted);}
+button:active:not(:disabled){transform:scale(.97);}
+button:disabled{opacity:.35;cursor:not-allowed;}
+.btn-primary{background:var(--green-dim);border-color:var(--green);color:#D9F5E5;}
+.btn-primary:hover:not(:disabled){background:var(--green);color:#08150E;}
+.btn-danger{background:var(--red-dim);border-color:var(--red);color:#FFD9DA;}
+.btn-danger:hover:not(:disabled){background:var(--red);color:#2A0708;}
+.btn-amber{background:var(--accent-dim);border-color:var(--accent);color:#FFE9C2;}
+.btn-amber:hover:not(:disabled){background:var(--accent);color:#241800;}
+.btn-ghost{background:transparent;}
+.btn-warn{background:#3A2A10;border-color:var(--accent);color:#FFE9C2;}
+.btn-sm{padding:6px 10px;font-size:12px;}
+.setup-row{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;}
+.settings-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.team-list{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.team-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+.team-row .name{font-weight:600;}
+.team-row .meta{color:var(--muted);font-size:12px;margin-left:10px;}
+.team-row .actions{display:flex;gap:6px;}
+.hint{color:var(--muted);font-size:12px;margin-top:6px;}
+.footer-actions{display:flex;justify-content:space-between;margin-top:20px;flex-wrap:wrap;gap:10px;}
+.identity-bar{display:flex;align-items:center;gap:10px;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:18px;flex-wrap:wrap;}
+.identity-bar select{width:auto;min-width:180px;}
+.identity-bar .lbl{font-size:12px;color:var(--muted);white-space:nowrap;}
+.nom-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;}
+.nom-chip{flex:0 0 auto;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--panel-alt);color:var(--muted);white-space:nowrap;}
+.nom-chip.current{background:var(--accent);color:#241800;border-color:var(--accent);}
+.nom-chip.passed{color:#5A616C;text-decoration:line-through;opacity:.5;}
+.scoreboard{background:radial-gradient(ellipse at top, #1A2029 0%, #10141A 100%);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;position:relative;overflow:hidden;}
+.scoreboard::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(180deg, rgba(255,255,255,.015) 0px, rgba(255,255,255,.015) 1px, transparent 1px, transparent 3px);pointer-events:none;}
+.sb-label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.sb-player{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:28px;text-transform:uppercase;letter-spacing:.02em;margin-bottom:10px;}
+.sb-bid{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:92px;line-height:1;color:var(--accent);text-shadow:0 0 30px rgba(255,176,32,.35);}
+.sb-leader{margin-top:6px;font-size:15px;font-weight:600;color:var(--green);}
+.sb-leader .tag{color:var(--muted);font-weight:400;font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-right:6px;}
+.sb-warn{margin-top:8px;font-size:12px;color:var(--red);font-weight:600;}
+.timer-wrap{margin-top:18px;}
+.timer-text{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;margin-bottom:6px;}
+.timer-bar-track{height:6px;border-radius:3px;background:var(--panel-alt);overflow:hidden;max-width:320px;margin:0 auto;}
+.timer-bar-fill{height:100%;background:var(--green);transition:width .25s linear, background .25s linear;}
+.timer-bar-fill.urgent{background:var(--red);}
+.timer-text.urgent{color:var(--red);}
+.onclock .team{font-family:'Big Shoulders Display',sans-serif;font-size:32px;font-weight:700;color:var(--accent);text-transform:uppercase;margin:4px 0 16px;}
+.onclock-input{max-width:340px;margin:0 auto 14px;}
+.onclock-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.waiting-msg{color:var(--muted);font-size:14px;margin-top:4px;}
+.all-passed{text-align:center;color:var(--muted);padding:10px 0;}
+.controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px;}
+.section-title{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:24px 0 12px;font-weight:600;}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.team-card{background:var(--panel-alt);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:7px;}
+.team-card.leading{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+.team-card.mine{border-color:var(--green);}
+.team-card .tname{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;}
+.team-card .you-tag{font-size:10px;background:var(--green-dim);color:#D9F5E5;padding:2px 6px;border-radius:4px;letter-spacing:.05em;}
+.team-card .budget{font-family:'JetBrains Mono',monospace;font-size:20px;color:var(--green);}
+.team-card .budget.over{color:var(--red);}
+.team-card .roster-count{font-size:11px;color:var(--muted);}
+.team-card button{width:100%;}
+.log-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
+.log-item{display:flex;justify-content:space-between;font-size:13px;background:var(--panel-alt);border:1px solid var(--border);border-radius:7px;padding:8px 12px;}
+.log-item .price{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700;}
+.log-item .price.over{color:var(--red);}
+.log-empty{color:var(--muted);font-size:13px;padding:8px 2px;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.summary-card h3{margin:0 0 4px;font-size:16px;}
+.summary-card .rem{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:22px;margin-bottom:10px;}
+.summary-card .rem.over{color:var(--red);}
+.summary-card ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+.summary-card li{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);}
+.summary-card li .p{color:var(--green);font-family:'JetBrains Mono',monospace;}
+.summary-card li .p.over{color:var(--red);}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;}
+.loading{text-align:center;padding:60px 20px;color:var(--muted);}
+
+details.commish-panel{margin-bottom:16px;}
+details.commish-panel summary{cursor:pointer;font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);list-style:none;}
+details.commish-panel summary::-webkit-details-marker{display:none;}
+details.commish-panel summary::before{content:'▸ ';}
+details.commish-panel[open] summary::before{content:'▾ ';}
+.commish-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.commish-settings{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;align-items:end;}
+.paused-badge{display:inline-block;background:var(--red-dim);border:1px solid var(--red);color:#FFD9DA;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading draft room…</div></div>
+
+<script>
+let local = null;
+let myTeamId = null;
+let playerDatalistHtml = '';
+
+async function loadPlayerList(){
+  try{
+    const r = await fetch('/players.json');
+    const players = await r.json();
+    playerDatalistHtml = players.map(p => `<option value="${escapeHtml(p.n)}">${escapeHtml(p.p)} · ${escapeHtml(p.t)}</option>`).join('');
+  }catch(e){
+    playerDatalistHtml = '';
+  }
+}
+
+/* ---------------- API ---------------- */
+async function apiGet(){
+  const r = await fetch('/api/state');
+  return r.json();
+}
+async function apiAction(type, payload){
+  const r = await fetch('/api/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, payload })
+  });
+  const data = await r.json();
+  local = data;
+  render();
+  return data;
+}
+
+function loadMyTeam(){ myTeamId = localStorage.getItem('myTeamId'); }
+function saveMyTeam(id){ myTeamId = id; localStorage.setItem('myTeamId', id); render(); }
+
+/* ---------------- setup actions ---------------- */
+async function addTeam(){
+  const nameEl = document.getElementById('newTeamName');
+  const budgetEl = document.getElementById('newTeamBudget');
+  const name = nameEl.value.trim();
+  if(!name){ nameEl.focus(); return; }
+  const defEl = document.getElementById('defaultBudget');
+  const defBudget = parseFloat(defEl.value);
+  const b = budgetEl.value ? parseFloat(budgetEl.value) : (isNaN(defBudget) ? 100 : defBudget);
+  await apiAction('addTeam', { name, budget: b });
+  nameEl.value = ''; budgetEl.value = '';
+  nameEl.focus();
+}
+async function removeTeam(id){ await apiAction('removeTeam', { id }); }
+async function moveTeam(id, dir){ await apiAction('moveTeam', { id, dir }); }
+
+async function startAuction(){
+  const inc = parseFloat(document.getElementById('incrementInput').value);
+  const nomSecs = parseInt(document.getElementById('nomSecondsInput').value, 10);
+  const bidSecs = parseInt(document.getElementById('bidSecondsInput').value, 10);
+  const roster = parseInt(document.getElementById('rosterLimitInput').value, 10);
+  await apiAction('startAuction', {
+    settings: {
+      increment: (!isNaN(inc) && inc > 0) ? inc : 1,
+      nominationSeconds: (!isNaN(nomSecs) && nomSecs > 0) ? nomSecs : 30,
+      bidSeconds: (!isNaN(bidSecs) && bidSecs > 0) ? bidSecs : 12,
+      rosterLimit: (!isNaN(roster) && roster > 0) ? roster : 0
+    }
+  });
+}
+
+/* ---------------- auction actions ---------------- */
+async function nominate(){
+  const input = document.getElementById('nomPlayerInput');
+  const player = input.value.trim();
+  if(!player){ input.focus(); return; }
+  await apiAction('nominate', { myTeamId, playerName: player });
+}
+async function passNomination(){ await apiAction('pass', { myTeamId }); }
+async function placeBid(teamId, amount){ await apiAction('bid', { teamId, amount }); }
+async function manualSell(){ await apiAction('manualSell', {}); }
+async function undoLast(){ await apiAction('undo', {}); }
+async function endDraft(){ await apiAction('endDraft', {}); }
+async function backToAuction(){ await apiAction('backToAuction', {}); }
+async function resetDraft(){
+  if(!confirm('Reset the whole draft room for everyone? This clears all teams, bids, and history.')) return;
+  await apiAction('reset', {});
+}
+async function pauseResume(){
+  if(local.paused) await apiAction('resume', {});
+  else await apiAction('pause', {});
+}
+async function extendClock(ms){ await apiAction('extendClock', { ms }); }
+async function forcePass(){ await apiAction('forcePass', {}); }
+async function updateSettingsLive(){
+  const increment = parseFloat(document.getElementById('commIncrement').value);
+  const nominationSeconds = parseInt(document.getElementById('commNomSecs').value, 10);
+  const bidSeconds = parseInt(document.getElementById('commBidSecs').value, 10);
+  await apiAction('updateSettings', { increment, nominationSeconds, bidSeconds });
+}
+function exportState(){
+  const blob = new Blob([JSON.stringify(local, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'auction-draft-results.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+function csvEscape(v){
+  v = String(v);
+  if(/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+  return v;
+}
+function exportCsv(){
+  const rows = [['Team', 'Player', 'Price']];
+  local.teams.forEach(t => {
+    t.roster.forEach(r => rows.push([t.name, r.player, r.price]));
+  });
+  rows.push([]);
+  rows.push(['Team', 'Remaining Budget']);
+  local.teams.forEach(t => rows.push([t.name, t.budget]));
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'auction-draft-results.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- ticking / sync ---------------- */
+function updateTimerDom(remainingMs){
+  const secs = Math.max(0, Math.ceil(remainingMs / 1000));
+  const textEl = document.getElementById('timerText');
+  const fillEl = document.getElementById('timerFill');
+  if(!textEl || !fillEl || !local.current) return;
+  const totalSecs = local.current.mode === 'bidding' ? local.settings.bidSeconds : local.settings.nominationSeconds;
+  const pct = Math.max(0, Math.min(100, (remainingMs / (totalSecs*1000)) * 100));
+  const urgent = secs <= 5;
+  textEl.textContent = secs + 's';
+  textEl.className = 'timer-text' + (urgent ? ' urgent' : '');
+  fillEl.style.width = pct + '%';
+  fillEl.className = 'timer-bar-fill' + (urgent ? ' urgent' : '');
+}
+function tick(){
+  if(!local || local.phase !== 'auction' || !local.current) return;
+  if(local.paused){
+    updateTimerDom(local.pausedRemainingMs || 0);
+  } else {
+    updateTimerDom(local.current.deadline - Date.now());
+  }
+}
+async function poll(){
+  try{
+    const fresh = await apiGet();
+    if(JSON.stringify(fresh) !== JSON.stringify(local)){
+      local = fresh;
+      render();
+    }
+  }catch(e){ /* transient network error, next poll will retry */ }
+}
+
+/* ---------------- render ---------------- */
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function render(){
+  if(!local) return;
+  if(local.phase === 'setup') renderSetup();
+  else if(local.phase === 'auction') renderAuction();
+  else renderSummary();
+}
+
+function renderSetup(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="eyebrow"><span class="live-dot"></span>Draft Room — Setup</div>
+    <h1>Free Agent Auction</h1>
+    <div class="subtitle">Set this up once, then send this page's URL to the whole league — everyone runs their own bids from here.</div>
+    <div class="card">
+      <div class="settings-grid">
+        <div><label>Default starting budget ($)</label><input id="defaultBudget" type="number" value="100"></div>
+        <div><label>Bid increment ($)</label><input id="incrementInput" type="number" value="1"></div>
+        <div><label>Nomination clock (sec)</label><input id="nomSecondsInput" type="number" value="30"></div>
+        <div><label>Bid clock (sec)</label><input id="bidSecondsInput" type="number" value="12"></div>
+      </div>
+      <div style="margin-top:14px;">
+        <label>Roster limit per team (optional)</label>
+        <input id="rosterLimitInput" type="number" placeholder="leave blank for none" style="max-width:220px;">
+      </div>
+      <div class="hint">The bid clock resets every time someone bids. If nobody nominates before the nomination clock runs out, that team is skipped and can't nominate again. Bids are never blocked for going over budget — the team just shows as over budget.</div>
+    </div>
+    <div class="card">
+      <label>Add teams (nomination order = order added; reorder with arrows)</label>
+      <div class="setup-row">
+        <input id="newTeamName" type="text" placeholder="Team name" onkeydown="if(event.key==='Enter'){document.getElementById('newTeamBudget').focus()}">
+        <input id="newTeamBudget" type="number" placeholder="Starting $ (optional)" onkeydown="if(event.key==='Enter'){addTeam()}">
+        <button class="btn-amber" onclick="addTeam()">Add team</button>
+      </div>
+      <div class="team-list">
+        ${local.teams.length === 0 ? '<div class="hint">No teams added yet.</div>' : local.teams.map((t,i) => `
+          <div class="team-row">
+            <div><span class="name">${i+1}. ${escapeHtml(t.name)}</span><span class="meta">$${t.budget} budget</span></div>
+            <div class="actions">
+              <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', -1)" ${i===0?'disabled':''}>↑</button>
+              <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', 1)" ${i===local.teams.length-1?'disabled':''}>↓</button>
+              <button class="btn-danger btn-sm" onclick="removeTeam('${t.id}')">Remove</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="footer-actions">
+      <div class="hint">${local.teams.length < 2 ? 'Add at least 2 teams to start.' : local.teams.length + ' teams ready.'}</div>
+      <button class="btn-primary" onclick="startAuction()" ${local.teams.length < 2 ? 'disabled' : ''}>Start auction →</button>
+    </div>
+  `;
+}
+
+function renderAuction(){
+  const app = document.getElementById('app');
+  const inc = local.settings.increment;
+
+  const commishPanel = `
+    <details class="card commish-panel">
+      <summary>Commissioner controls</summary>
+      <div class="commish-grid">
+        <button class="${local.paused?'btn-primary':'btn-danger'}" onclick="pauseResume()" ${!local.current?'disabled':''}>${local.paused ? 'Resume clock' : 'Pause clock'}</button>
+        <button class="btn-ghost btn-sm" onclick="extendClock(15000)" ${!local.current?'disabled':''}>+15s</button>
+        <button class="btn-ghost btn-sm" onclick="extendClock(30000)" ${!local.current?'disabled':''}>+30s</button>
+        <button class="btn-ghost btn-sm" onclick="extendClock(-15000)" ${!local.current?'disabled':''}>-15s</button>
+        ${local.current && local.current.mode==='nominating' ? `<button class="btn-danger btn-sm" onclick="forcePass()">Force pass nomination</button>` : ''}
+        ${local.current && local.current.mode==='bidding' ? `<button class="btn-ghost btn-sm" onclick="manualSell()">Force sell now</button>` : ''}
+        <button class="btn-ghost btn-sm" onclick="undoLast()" ${local.log.length===0?'disabled':''}>Undo last sale</button>
+      </div>
+      <div class="commish-settings">
+        <div><label>Increment $</label><input id="commIncrement" type="number" value="${local.settings.increment}"></div>
+        <div><label>Nomination clock (s)</label><input id="commNomSecs" type="number" value="${local.settings.nominationSeconds}"></div>
+        <div><label>Bid clock (s)</label><input id="commBidSecs" type="number" value="${local.settings.bidSeconds}"></div>
+        <button class="btn-amber btn-sm" onclick="updateSettingsLive()">Apply to future turns</button>
+      </div>
+      <div class="hint">Pause and +/-15s affect whichever clock is running right now. Settings changes apply starting with the next nomination or bid, not the one in progress.</div>
+    </details>
+  `;
+
+  const identityBar = `
+    <div class="identity-bar">
+      <span class="lbl">You are:</span>
+      <select onchange="saveMyTeam(this.value)">
+        <option value="">— select your team —</option>
+        ${local.teams.map(t => `<option value="${t.id}" ${myTeamId===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+      </select>
+      ${!myTeamId ? '<span class="hint" style="margin:0;">Pick your team to nominate and bid.</span>' : ''}
+    </div>
+  `;
+
+  const nomBar = `
+    <div class="nom-bar">
+      ${local.teams.map(t => {
+        const cls = t.passedNomination ? 'passed' : (local.current && local.current.mode==='nominating' && local.current.teamId===t.id ? 'current' : '');
+        return `<div class="nom-chip ${cls}">${escapeHtml(t.name)}</div>`;
+      }).join('')}
+    </div>
+  `;
+
+  let centerPanel = '';
+  if(local.current && local.current.mode === 'bidding'){
+    const leader = local.teams.find(t => t.id === local.current.leaderId);
+    const overWarn = leader && (leader.budget - local.current.bid) < 0;
+    centerPanel = `
+      <div class="scoreboard">
+        <div class="sb-label">On the board</div>
+        <div class="sb-player">${escapeHtml(local.current.playerName)}</div>
+        <div class="sb-bid">$${local.current.bid}</div>
+        <div class="sb-leader"><span class="tag">Leading</span>${escapeHtml(leader.name)}</div>
+        ${overWarn ? `<div class="sb-warn">${escapeHtml(leader.name)} would go over budget on this bid</div>` : ''}
+        <div class="timer-wrap">
+          <div id="timerText" class="timer-text">--s</div>
+          <div class="timer-bar-track"><div id="timerFill" class="timer-bar-fill" style="width:100%;"></div></div>
+          ${local.paused ? '<div class="paused-badge">Paused by commissioner</div>' : ''}
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn-ghost" onclick="manualSell()" ${local.paused?'disabled':''}>Sell now (force)</button>
+        <button class="btn-ghost" onclick="undoLast()" ${local.log.length===0?'disabled':''}>Undo last sale</button>
+      </div>
+    `;
+  } else if(local.current && local.current.mode === 'nominating'){
+    const t = local.teams.find(x => x.id === local.current.teamId);
+    const isMe = myTeamId === t.id;
+    centerPanel = `
+      <div class="scoreboard onclock">
+        <div class="sb-label">On the clock to nominate</div>
+        <div class="team">${escapeHtml(t.name)}</div>
+        ${isMe ? `
+          <div class="onclock-input">
+            <input id="nomPlayerInput" type="text" placeholder="Player name" autocomplete="off" list="playerList" onkeydown="if(event.key==='Enter'){nominate()}" ${local.paused?'disabled':''}>
+            <datalist id="playerList">${playerDatalistHtml}</datalist>
+            <div class="hint" style="text-align:center;">Suggestions from the ranking sheet — type anything to override.</div>
+          </div>
+          <div class="onclock-actions">
+            <button class="btn-primary" onclick="nominate()" ${local.paused?'disabled':''}>Nominate — open at $1</button>
+            <button class="btn-danger" onclick="passNomination()" ${local.paused?'disabled':''}>Pass (forfeits future nominations)</button>
+          </div>
+        ` : `<div class="waiting-msg">Waiting on ${escapeHtml(t.name)}…</div>`}
+        <div class="timer-wrap">
+          <div id="timerText" class="timer-text">--s</div>
+          <div class="timer-bar-track"><div id="timerFill" class="timer-bar-fill" style="width:100%;"></div></div>
+          ${local.paused ? '<div class="paused-badge">Paused by commissioner</div>' : ''}
+        </div>
+      </div>
+    `;
+  } else {
+    centerPanel = `
+      <div class="scoreboard">
+        <div class="sb-label">Nominations complete</div>
+        <div class="all-passed">Every team has passed or made their nominations.<br>Wrap up, then end the draft.</div>
+      </div>
+    `;
+  }
+
+  const teamGrid = `
+    <div class="section-title">Teams</div>
+    <div class="team-grid">
+      ${local.teams.map(t => {
+        const isLeading = local.current && local.current.mode==='bidding' && local.current.leaderId === t.id;
+        const isMine = t.id === myTeamId;
+        const bidAmount = (local.current && local.current.mode==='bidding') ? local.current.bid + inc : null;
+        const wouldBeOver = bidAmount !== null && (t.budget - bidAmount) < 0;
+        return `
+          <div class="team-card ${isLeading?'leading':''} ${isMine?'mine':''}">
+            <div class="tname">${escapeHtml(t.name)} ${isMine ? '<span class="you-tag">YOU</span>' : ''}</div>
+            <div class="budget ${t.budget<0?'over':''}">$${t.budget}${t.budget<0?' over':''}</div>
+            <div class="roster-count">${t.roster.length}${local.settings.rosterLimit ? '/' + local.settings.rosterLimit : ''} players${t.passedNomination ? ' · passed nominating' : ''}</div>
+            ${(isMine && local.current && local.current.mode==='bidding' && local.current.leaderId !== t.id) ? `<button class="${wouldBeOver?'btn-warn':'btn-amber'} btn-sm" onclick="placeBid('${t.id}', ${bidAmount})" ${local.paused?'disabled':''}>Bid $${bidAmount}${wouldBeOver?' ⚠':''}</button>` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  const logPanel = `
+    <div class="section-title">Sold</div>
+    <div class="card">
+      <div class="log-list">
+        ${local.log.length === 0 ? '<div class="log-empty">No players sold yet.</div>' : local.log.map(l => {
+          const t = local.teams.find(x => x.id === l.teamId);
+          return `<div class="log-item"><span>${escapeHtml(l.player)} <span style="color:var(--muted)">→ ${escapeHtml(t?t.name:'Unknown')}</span></span><span class="price ${l.over?'over':''}">$${l.price}${l.over?' ⚠':''}</span></div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div>
+        <div class="eyebrow"><span class="live-dot"></span>Draft Room — Live</div>
+        <h1 style="font-size:28px;">Free Agent Auction</h1>
+      </div>
+      <button class="btn-ghost btn-sm" onclick="resetDraft()">Reset draft</button>
+    </div>
+    ${commishPanel}
+    ${identityBar}
+    ${nomBar}
+    ${centerPanel}
+    ${teamGrid}
+    ${logPanel}
+    <div class="footer-actions">
+      <button class="btn-ghost btn-sm" onclick="exportCsv()">Export CSV so far</button>
+      <button class="btn-ghost" onclick="endDraft()">End draft →</button>
+    </div>
+  `;
+  if(local.current) updateTimerDom(local.current.deadline - Date.now());
+}
+
+function renderSummary(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="eyebrow"><span class="live-dot"></span>Draft Room — Final</div>
+    <h1>Auction Results</h1>
+    <div class="subtitle">Final rosters and remaining budgets.</div>
+    <div class="summary-grid">
+      ${local.teams.map(t => `
+        <div class="card summary-card">
+          <h3>${escapeHtml(t.name)}</h3>
+          <div class="rem ${t.budget<0?'over':''}">$${t.budget} remaining${t.budget<0?' (over)':''}</div>
+          <ul>
+            ${t.roster.length === 0 ? '<li style="color:var(--muted)">No players won</li>' : t.roster.map(r => `
+              <li><span>${escapeHtml(r.player)}</span><span class="p ${r.over?'over':''}">$${r.price}</span></li>
+            `).join('')}
+          </ul>
+        </div>
+      `).join('')}
+    </div>
+    <div class="footer-actions">
+      <button class="btn-ghost" onclick="backToAuction()">← Back to auction</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-ghost" onclick="exportCsv()">Export CSV</button>
+        <button class="btn-amber" onclick="exportState()">Export JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- init ---------------- */
+async function init(){
+  loadMyTeam();
+  await loadPlayerList();
+  local = await apiGet();
+  render();
+  setInterval(tick, 300);
+  setInterval(poll, 1000);
+}
+init();
+</script>
+</body>
+</html>

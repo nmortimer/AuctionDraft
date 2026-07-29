@@ -1,7 +1,9 @@
 const { getClient, KEY } = require('./_redis');
 const {
-  defaultState, uid, beginNomination, nextNominatorId, applySale, processExpiry
+  defaultState, uid, beginNomination, nextNominatorId, applySale, processExpiry, sanitizeForClient
 } = require('./_lib');
+
+const COMMISH_ACTIONS = new Set(['pause', 'resume', 'extendClock', 'forcePass', 'manualSell', 'updateSettings', 'reset', 'checkPin']);
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).end(); return; }
@@ -14,11 +16,28 @@ module.exports = async (req, res) => {
     if (!state) state = defaultState();
     processExpiry(state);
 
-    switch (type) {
+    let pinError = false;
+    if (COMMISH_ACTIONS.has(type) && state.commishPin) {
+      if (!payload || payload.pin !== state.commishPin) pinError = true;
+    }
+
+    if (!pinError) {
+      switch (type) {
       case 'addTeam': {
         state.teams.push({
           id: uid(), name: payload.name, budget: payload.budget,
-          spent: 0, roster: [], passedNomination: false
+          spent: 0, roster: [], passedNomination: false,
+          logo: payload.logo || '', funFact: payload.funFact || '', jab: payload.jab || ''
+        });
+        break;
+      }
+      case 'addTeams': {
+        (payload.teams || []).forEach(t => {
+          state.teams.push({
+            id: uid(), name: t.name, budget: t.budget,
+            spent: 0, roster: [], passedNomination: false,
+            logo: t.logo || '', funFact: t.funFact || '', jab: t.jab || ''
+          });
         });
         break;
       }
@@ -37,6 +56,7 @@ module.exports = async (req, res) => {
       case 'startAuction': {
         if (state.teams.length >= 2) {
           state.settings = payload.settings;
+          state.commishPin = (payload.commishPin || '').trim();
           state.phase = 'auction';
           state.current = beginNomination(state.teams[0].id, state.settings.nominationSeconds);
         }
@@ -136,11 +156,15 @@ module.exports = async (req, res) => {
         if (!isNaN(s.rosterLimit) && s.rosterLimit >= 0) state.settings.rosterLimit = s.rosterLimit;
         break;
       }
+      case 'checkPin': break; // just used to verify a PIN — no state change
       default: break;
+      }
     }
 
     await redis.set(KEY, JSON.stringify(state));
-    res.status(200).json(state);
+    const clientState = sanitizeForClient(state);
+    if (pinError) clientState.pinError = true;
+    res.status(200).json(clientState);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

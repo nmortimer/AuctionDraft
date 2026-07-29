@@ -1,8 +1,1 @@
-{
-  "name": "auction-draft-room",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@upstash/redis": "latest"
-  }
-}
+{ "name": "auction-draft-room", "version": "1.0.0", "private": true, "dependencies": { "redis": "^4.7.0" } }

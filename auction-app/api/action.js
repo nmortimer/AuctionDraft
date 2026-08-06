@@ -3,7 +3,7 @@ const {
   defaultState, uid, beginNomination, nextNominatorId, applySale, processExpiry, sanitizeForClient
 } = require('./_lib');
 
-const COMMISH_ACTIONS = new Set(['pause', 'resume', 'extendClock', 'forcePass', 'manualSell', 'updateSettings', 'reset', 'checkPin']);
+const COMMISH_ACTIONS = new Set(['pause', 'resume', 'extendClock', 'forcePass', 'manualSell', 'undo', 'updateSettings', 'reset', 'checkPin']);
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).end(); return; }
@@ -43,6 +43,11 @@ module.exports = async (req, res) => {
       }
       case 'removeTeam': {
         state.teams = state.teams.filter(t => t.id !== payload.id);
+        break;
+      }
+      case 'setTeamBudget': {
+        const t = state.teams.find(x => x.id === payload.id);
+        if (t && !isNaN(payload.budget)) t.budget = payload.budget;
         break;
       }
       case 'moveTeam': {

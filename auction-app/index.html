@@ -174,6 +174,13 @@ async function addTeam(){
 }
 async function removeTeam(id){ await apiAction('removeTeam', { id }); }
 async function moveTeam(id, dir){ await apiAction('moveTeam', { id, dir }); }
+async function editTeamBudget(id, current){
+  const val = prompt('New starting budget for this team:', current);
+  if(val === null) return;
+  const num = parseFloat(val);
+  if(isNaN(num)) return;
+  await apiAction('setTeamBudget', { id, budget: num });
+}
 
 async function startAuction(){
   const inc = parseFloat(document.getElementById('incrementInput').value);
@@ -205,6 +212,12 @@ async function nominate(){
 }
 async function passNomination(){ await apiAction('pass', { myTeamId }); }
 async function placeBid(teamId, amount){ await apiAction('bid', { teamId, amount }); }
+function placeCustomBid(teamId){
+  const input = document.getElementById('customBid-' + teamId);
+  const val = parseFloat(input.value);
+  if(isNaN(val) || !local.current || val <= local.current.bid) return;
+  placeBid(teamId, val);
+}
 async function undoLast(){ await apiAction('undo', {}); }
 async function endDraft(){ await apiAction('endDraft', {}); }
 async function backToAuction(){ await apiAction('backToAuction', {}); }
@@ -273,7 +286,7 @@ const PRESET_TEAMS = [
   { name: 'Strasbourg Soldiers', budget: 5, logo: 'https://s3.amazonaws.com/fleaflicker/t1437039_0_150x150.jpg', funFact: 'The only team headquartered in France — official motto still being translated.', jab: 'First to wave the white flag the moment the schedule gets hard.' },
   { name: 'South Bend Silver Hawks', budget: 78, logo: 'https://s3.amazonaws.com/fleaflicker/t1432373_0_150x150.jpg', funFact: "One of the league's founding franchises, named for Studebaker and South Bend history.", jab: 'Like the cars that inspired them — running mostly on nostalgia and spare parts.' },
   { name: 'Summit County Ski Bums', budget: 34, logo: 'https://s3.amazonaws.com/fleaflicker/t1434105_0_150x150.jpg', funFact: 'A founding member of the FTFL, still going strong since day one.', jab: 'Word is the moving trucks are already booked — might want to check the standings before packing.' },
-  { name: 'Olde Town Osos', budget: 57, logo: 'https://s3.amazonaws.com/fleaflicker/t1436073_0_150x150.jpg', funFact: "One of the league's most dedicated owners — never misses a waiver deadline.", jab: 'Runner-up energy: always the bridesmaid, never the bride.' },
+  { name: 'Olde Town Osos', budget: 50, logo: 'https://s3.amazonaws.com/fleaflicker/t1436073_0_150x150.jpg', funFact: "One of the league's most dedicated owners — never misses a waiver deadline.", jab: 'Runner-up energy: always the bridesmaid, never the bride.' },
   { name: 'Boulder Bandits', budget: 1, logo: 'https://s3.amazonaws.com/fleaflicker/t1417685_0_150x150.jpg', funFact: 'The most decorated franchise in FTFL history — 4 championships and counting.', jab: "At this point they're not a fantasy team, they're a dynasty problem." },
   { name: 'Kansas City Kaiju', budget: 27, logo: 'https://s3.amazonaws.com/fleaflicker/t1432482_0_150x150.jpg', funFact: 'The newest ownership group in the league, arriving with maybe the best team name FTFL has ever had.', jab: 'Great name, unproven monster — so far more "kaiju costume" than kaiju.' },
   { name: 'Denver Diamondbacks', budget: 76, logo: 'https://s3.amazonaws.com/fleaflicker/t1434157_0_150x150.jpg', funFact: 'Won a championship before relocating — the trophy made the move, the magic did not.', jab: 'Perpetually "rebuilding." At some point the rebuild just becomes the personality.' }
@@ -367,6 +380,7 @@ function renderSetup(){
           <div class="team-row">
             <div style="display:flex;align-items:center;">${t.logo ? `<img src="${escapeHtml(t.logo)}" class="team-logo" alt="">` : ''}<span class="name">${i+1}. ${escapeHtml(t.name)}</span><span class="meta">$${t.budget} budget</span></div>
             <div class="actions">
+              <button class="btn-ghost btn-sm" onclick="editTeamBudget('${t.id}', ${t.budget})">Edit $</button>
               <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', -1)" ${i===0?'disabled':''}>↑</button>
               <button class="btn-ghost btn-sm" onclick="moveTeam('${t.id}', 1)" ${i===local.teams.length-1?'disabled':''}>↓</button>
               <button class="btn-danger btn-sm" onclick="removeTeam('${t.id}')">Remove</button>
@@ -461,10 +475,6 @@ function renderAuction(){
           ${local.paused ? '<div class="paused-badge">Paused by commissioner</div>' : ''}
         </div>
       </div>
-      <div class="controls">
-        <button class="btn-ghost" onclick="manualSell()" ${local.paused?'disabled':''}>Sell now (force)</button>
-        <button class="btn-ghost" onclick="undoLast()" ${local.log.length===0?'disabled':''}>Undo last sale</button>
-      </div>
     `;
   } else if(local.current && local.current.mode === 'nominating'){
     const t = local.teams.find(x => x.id === local.current.teamId);
@@ -516,7 +526,15 @@ function renderAuction(){
             <div class="budget ${t.budget<0?'over':''}">$${t.budget}${t.budget<0?' over':''}</div>
             <div class="roster-count">${t.roster.length}${local.settings.rosterLimit ? '/' + local.settings.rosterLimit : ''} players${t.passedNomination ? ' · passed nominating' : ''}</div>
             ${t.funFact ? `<div class="fun-fact">${escapeHtml(t.funFact)}</div>` : ''}
-            ${(isMine && local.current && local.current.mode==='bidding' && local.current.leaderId !== t.id) ? `<button class="${wouldBeOver?'btn-warn':'btn-amber'} btn-sm" onclick="placeBid('${t.id}', ${bidAmount})" ${local.paused?'disabled':''}>Bid $${bidAmount}${wouldBeOver?' ⚠':''}</button>` : ''}
+            ${(isMine && local.current && local.current.mode==='bidding' && local.current.leaderId !== t.id) ? `
+              <div style="display:flex;gap:6px;">
+                <button class="${wouldBeOver?'btn-warn':'btn-amber'} btn-sm" style="flex:1;" onclick="placeBid('${t.id}', ${bidAmount})" ${local.paused?'disabled':''}>+$${inc} → $${bidAmount}${wouldBeOver?' ⚠':''}</button>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <input type="number" id="customBid-${t.id}" placeholder="$${bidAmount+1}+" min="${bidAmount}" style="flex:1;padding:6px 8px;font-size:12px;" ${local.paused?'disabled':''}>
+                <button class="btn-ghost btn-sm" onclick="placeCustomBid('${t.id}')" ${local.paused?'disabled':''}>Jump</button>
+              </div>
+            ` : ''}
           </div>
         `;
       }).join('')}
